@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utils</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>timer</h1>
+    <a href="../">home</a>
+
+    <section style="padding-top: 2rem; width: full">
+      <div style="display: flex; flex-direction: column; padding: 0.5rem; gap: 0.5rem; width: full">
+        <form id="timeForm" style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 0.5rem">
+          <div style=" display: flex; align-items: baseline; gap: 0.25rem; flex-grow: 1;" >
+            <label for="hours" style="font-family: monospace; display: inline-block"> H </label>
+            <input type="number" id="hours" name="hours" style="min-width: 1rem; flex-grow: 1">
+          </div>
+          <div style=" display: flex; align-items: baseline; gap: 0.25rem; flex-grow: 1;" >
+            <label for="minutes" style="font-family: monospace; display: inline-block;"> M </label>
+            <input type="number" id="minutes" name="minutes" style="min-width: 1rem; flex-grow: 1">
+          </div>
+          <div style=" display: flex; align-items: baseline; gap: 0.25rem; flex-grow: 1;" >
+            <label for="seconds" style="font-family: monospace; display: inline-block;"> S </label>
+            <input type="number" id="seconds" name="seconds" style="min-width: 1rem; flex-grow: 1">
+          </div>
+        </form>
+        <progress style="width: 100%" id="progress" value="0" max="100"></progress>
+      </div>
+      <div style="display: flex; gap: 0.5rem; padding: 0.5rem">
+        <button style="width: 2rem;"type="button" id="playPause">⏯</button>
+        <button style="width: 2rem;"type="button" id="stop">⏹</button>
+      </div>
+    </section>
+
+    <script>
+      const progressbar = document.getElementById('progress');
+
+      const playPauseButton = document.getElementById('playPause')
+      const stopButton = document.getElementById('stop')
+
+      const hoursInput = document.getElementById('hours')
+      const minutesInput = document.getElementById('minutes')
+      const secondsInput = document.getElementById('seconds')
+      
+      /** @type {HTMLFormElement} */
+      const timeForm = document.getElementById('timeForm');
+      
+
+      let state = {
+        maxMs: 15*60*60*1000,
+        remainingMs: 15*60*60*1000,
+        intervalId: null,
+      }
+
+      const getDurationFromForm = () => {
+        const hours = Number(hoursInput.value);
+        const minutes = Number(minutesInput.value);
+        const seconds = Number(secondsInput.value);
+
+        return Temporal.Duration.from({ hours, minutes, seconds })
+      }
+      const setFormDurationMs = (milliseconds) => {
+        const duration = Temporal.Duration
+            .from({ milliseconds })
+            .round({largestUnit: 'hours', smallestUnit: 'seconds' })
+          hoursInput.value = duration.hours
+          minutesInput.value= duration.minutes
+          secondsInput.value = duration.seconds
+      }
+
+      const getMs = (duration) => {
+        const d = Temporal.Duration.from(duration)
+        return d.round({ largestUnit: 'milliseconds', smallestUnit: 'milliseconds'}).milliseconds
+      }
+
+      setState = (partialNewState) => {
+        const newState = { ...state, ...partialNewState }
+        if (state.intervalId !== newState.intervalId) window.clearInterval(state.intervalId);
+        if (
+          state.remainingMs !== newState.remainingMs
+          && Number.isSafeInteger(newState.remainingMs)
+          ) setFormDurationMs(newState.remainingMs)
+        
+        state = newState
+        progressbar.setAttribute('value', state.remainingMs)
+        progressbar.setAttribute('max', state.maxMs)
+      }
+
+      
+      const tickDurationMs = 50
+      playPauseButton.onclick = () => {
+        if (state.intervalId) {
+          setState({intervalId: null})
+          return
+        }
+        const callback = () => setState({ remainingMs: state.remainingMs - tickDurationMs})
+        const intervalId =  window.setInterval(callback, tickDurationMs);
+        setState({ intervalId })
+      };
+
+
+      stopButton.onclick = () => setState({ remainingMs: state.maxMs, intervalId: null });
+
+      timeForm.onchange = () => {
+        const formDuration = getDurationFromForm();
+        const ms = getMs(formDuration)
+        setState({ remainingMs: ms, maxMs: ms })
+      }
+
+      const fiveMinutes = getMs({ minutes: 5 });
+      setState({ maxMs: fiveMinutes, remainingMs: fiveMinutes})
+    </script>
+  </body>
+</html>
