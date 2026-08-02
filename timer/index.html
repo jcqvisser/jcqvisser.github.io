@@ -63,8 +63,9 @@
         const minutes = Number(minutesInput.value);
         const seconds = Number(secondsInput.value);
 
-        return Temporal.Duration.from({ hours, minutes, seconds })
+        return { hours, minutes, seconds }
       }
+
       const setFormDurationMs = (milliseconds) => {
         const duration = Temporal.Duration
             .from({ milliseconds })
@@ -74,10 +75,10 @@
           secondsInput.value = duration.seconds
       }
 
-      const getMs = (duration) => {
-        const d = Temporal.Duration.from(duration)
-        return d.round({ largestUnit: 'milliseconds', smallestUnit: 'milliseconds'}).milliseconds
-      }
+      const getMs = (duration) => 
+        (duration.seconds ?? 0) * 1000
+        + (duration.minutes ?? 0) * 60 * 1000
+        + (duration.hours ?? 0) * 60 * 60 * 1000;
 
       setState = (partialNewState) => {
         const newState = { ...state, ...partialNewState }
@@ -92,26 +93,44 @@
         progressbar.setAttribute('max', state.maxMs)
       }
 
-      
+      function setStateFromForm() {
+        const duration = getDurationFromForm()
+        const ms = getMs(duration)
+        setState({ remainingMs: ms, maxMs: ms })
+      }
+
+      function isPlaying() {
+        state.intervalId !== null;
+      }
+
+      function pause() {
+        setState({intervalId: null})
+      }
+
       const tickDurationMs = 50
-      playPauseButton.onclick = () => {
-        if (state.intervalId) {
-          setState({intervalId: null})
-          return
+      function play() {
+        const callback = () => {    
+          if (state.remainingMs < 0) {
+            pause()
+          }
+          setState({ remainingMs: state.remainingMs - tickDurationMs});
         }
-        const callback = () => setState({ remainingMs: state.remainingMs - tickDurationMs})
         const intervalId =  window.setInterval(callback, tickDurationMs);
         setState({ intervalId })
+      }
+      
+      playPauseButton.onclick = () => {
+        if (isPlaying()) {
+          pause()
+        } else {
+          setStateFromForm()
+          play()
+        }
       };
-
 
       stopButton.onclick = () => setState({ remainingMs: state.maxMs, intervalId: null });
 
-      timeForm.onchange = () => {
-        const formDuration = getDurationFromForm();
-        const ms = getMs(formDuration)
-        setState({ remainingMs: ms, maxMs: ms })
-      }
+      timeForm.onchange = setStateFromForm()
 
       const fiveMinutes = getMs({ minutes: 5 });
       setState({ maxMs: fiveMinutes, remainingMs: fiveMinutes})
